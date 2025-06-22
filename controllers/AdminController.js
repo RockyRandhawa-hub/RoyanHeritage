@@ -3,7 +3,32 @@ import { APiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt"
+import { JsonWebToken } from "../services/TokenService.js";
 const prisma  =new PrismaClient()
+
+
+const generateAccessToken  =async (userId)=>{
+    const user = await prisma.admin.findUnique({
+        where:{
+           id: userId
+        }, 
+        select:{
+            email :true , 
+            id : true
+        }
+    })
+
+if (!user) throw new ApiError(401, "Admin not found");
+
+        const token  = await JsonWebToken.generateToken({
+            id:user.id , 
+            email:user.email
+        })
+
+        if(!token)  throw new ApiError(501, "Something went wrong"); 
+        return token;
+
+}
 
 const registerController = asyncHandler(async(req,res)=>{
 
@@ -46,7 +71,6 @@ console.log("REQ BODY ===> ", req.body); // should print actual data
         select:{
             id:true,
             email:true,
-            password:false,
             FirstName:true, 
             LastName:true
         }
@@ -60,6 +84,53 @@ console.log("REQ BODY ===> ", req.body); // should print actual data
 }) 
 
 
+const loginCOntroller = asyncHandler(async(req,res)=>{
+  // take the id and password 
+  // comapre the password via bacrypt 
+  // if all is done send the token as cookie and also from the frontend side ok 
 
+    const {email  ,password } = req.body; 
 
-export{registerController}
+    if(!email || !password) throw new ApiError(401, "You need to signup");
+ 
+    const AdminUserHashedPassword   = await prisma.admin.findUnique({
+        where:{
+            email
+        },
+        select:{
+            password:true , 
+            id: true
+        }
+    })
+      if(!AdminUserHashedPassword) throw new ApiError(501, "something went wrong ");
+
+      const adminID = AdminUserHashedPassword.id; 
+      const checkingPassword = await bcrypt.compare(password , AdminUserHashedPassword.password)
+
+      if(!checkingPassword) throw new ApiError(401, "hey the password is not done right")
+
+        const token = await generateAccessToken (AdminUserHashedPassword.id); 
+        if(!token) throw new ApiError(401, "Something went wrong")
+        const loggedInUser = await prisma.admin.findUnique({
+            where:{
+                id:adminID
+            },
+            select:{
+                   FirstName: true,
+    LastName: true,
+    email: true
+            }
+        })
+
+      const options = {
+  httpOnly: true,         // Prevent JS access (XSS safe)
+  secure: true,           // Only over HTTPS (set to false in dev if needed)
+  sameSite: 'Lax',        // CSRF protection (or 'None' if cross-origin + secure)
+  maxAge: 24 * 60 * 60 * 1000 // 1 day validity in milliseconds
+};
+
+        return res.status(201).cookie("access" , token , options).json(new APiResponse(201,{user:loggedInUser , token}))
+    
+})
+
+export{registerController , loginCOntroller}
