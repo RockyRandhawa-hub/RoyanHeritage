@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import {app} from './app.js'
 
-dotenv.config({path:'./env'})
+dotenv.config({path:'./.env'})
 
 
 const prisma  = new PrismaClient(); 

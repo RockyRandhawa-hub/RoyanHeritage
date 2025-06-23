@@ -21,3 +21,44 @@ model Admin{
   password String
 
 }
+model SlotAvailability {
+  id          Int      @id @default(autoincrement())
+  date        DateTime
+  slot        Slot
+  totalLimit  Int      @default(18)
+  remaining   Int
+  createdAt   DateTime @default(now())
+
+}
+model Visitor {
+  id         Int      @id @default(autoincrement())
+  name       String
+  mobile     String   @unique
+  hasVisited Boolean  @default(false)     // Track attendance
+  tickets    Ticket[]                     // One-to-many relation
+}
+model Ticket {
+  id         Int       @id @default(autoincrement())
+  quantity   Int                          // Number of visitors
+  date       DateTime
+  slot       Slot                         // ENUM
+  visitor    Visitor   @relation(fields: [visitorId], references: [id])
+  visitorId  Int
+  createdAt  DateTime  @default(now())
+}
+//  Breakdown:
+// visitor → Ye relation ka naam hai (Prisma ko bol rahe ho ki ek connection hai Ticket aur Visitor ke beech)
+
+// Visitor → Ye kaunse model se connect ho raha hai
+
+// @relation(...) → Ye relation ka technical config batata hai:
+
+// fields: [visitorId] → Is model (Ticket) ka field visitorId foreign key banega
+
+// references: [id] → Ye Visitor model ke id field ko point karega
+enum Slot {
+  TUESDAY_EVENING
+  THURSDAY_EVENING
+  SUNDAY_MORNING
+}
+
