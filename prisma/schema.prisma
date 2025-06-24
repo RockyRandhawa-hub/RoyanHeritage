@@ -30,6 +30,17 @@ model SlotAvailability {
   createdAt   DateTime @default(now())
 
 }
+model TempOrder {
+  id               Int      @id @default(autoincrement())
+  razorpayOrderId  String   @unique          // Razorpay order ID
+  name             String
+  mobile           String
+  slot             Slot                     // Reuse your existing Slot enum
+  date             DateTime
+  requestedTickets Int
+  createdAt        DateTime @default(now())
+}
+
 model Visitor {
   id         Int      @id @default(autoincrement())
   name       String
