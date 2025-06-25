@@ -4,18 +4,17 @@ import { APiResponse } from "../utils/ApiResponse";
 import { asyncHandler } from "../utils/asyncHandler";
 
 
-const authProtectedRout = asyncHandler(async(req,res,next)=>{
+export const authProtectedRout = asyncHandler(async(req,res,next)=>{
 try {
     
         const {RouteToken} = req.cookies.RouteToken;
     
         if(!RouteToken) throw new ApiError(401,"you are not verified plz verify your phone number again")
             
-            const verfiedIsTrue = JsonWebToken.veriFyToken(RouteToken)
-            if(!verfiedIsTrue) throw new ApiError(401, "something went wrong");
+            const verifiedPayload  = JsonWebToken.veriFyToken(RouteToken)
+            if(!verifiedPayload ) throw new ApiError(401, "something went wrong");
     
-            const phoneNumber = JsonWebToken.decodeToken(RouteToken);
-            req.phoneNumber = phoneNumber.phoneNumber;
+            req.phoneNumber = verifiedPayload.phoneNumber;
     
         next();
 } catch (error) {
