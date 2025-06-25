@@ -4,6 +4,7 @@ import { APiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import crypto from "crypto";
 import { Prisma, PrismaClient } from "@prisma/client";
+import { JsonWebToken } from "../services/TokenService.js";
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -185,5 +186,33 @@ return res.status(200).json(
   } else {
     throw new ApiError(400, "Payment verification failed");
   }
+
+})
+
+export const otpVerification = asyncHandler(async(req,res)=>{
+
+  // checking the phone number 
+  // generating the 6 digit otp
+  // generating the token on the payload of our number 
+  // jwt new secret in env file 
+  // send the cookies token in fomr of this  
+
+  const{phoneNumber} = req.body;
+  // if(phoneNumber.length<10 || phoneNumber.length>10) throw new ApiError(401,"something went wron")
+  if(!phoneNumber) throw new ApiError(401, "Please enter your phone number") ;
+  
+  // --> generatingOtp()// logic will come here 
+
+  const RouteTOken = await JsonWebToken.generateToken({phoneNumber});
+  if(!RouteTOken) throw new ApiError(401, "something went wrong try again");
+
+     const options = {
+  httpOnly: true,         // Prevent JS access (XSS safe)
+  secure: true,           // Only over HTTPS (set to false in dev if needed)
+  sameSite: 'Lax',        // CSRF protection (or 'None' if cross-origin + secure)
+  maxAge: 10*60*1000 // 10 mintues validity in milliseconds
+};
+
+return res.status(201).cookie("RouteToken" , RouteTOken,options).json(new APiResponse(201,{RouteTOken} , "all done here is your otpVerifcation token"))
 
 })

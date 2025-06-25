@@ -12,5 +12,8 @@ export class JsonWebToken{
 static veriFyToken(token){
     return jwt.verify(token , process.env.JWT_SECRET)
 }
+static decodeToken(token){
+  return jwt.decode(token)
+}
 }
 
