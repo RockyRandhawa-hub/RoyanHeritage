@@ -11,6 +11,7 @@ const razorpayInstance = new Razorpay({
   key_secret: process.env.RAZORPAY_SECRET,
 });
 const prisma = new PrismaClient()
+
 export const createOrder = asyncHandler(async (req, res) => {
   try {
     
@@ -64,6 +65,7 @@ const totalTicketCount = tickets.length;
       },
     });
   
+    
 
      const tempOrder =  await prisma.tempOrder.create({
         data:{
@@ -77,6 +79,17 @@ const totalTicketCount = tickets.length;
       })
 
       if(!tempOrder) throw new ApiError(501, "try again something went wrong")
+
+        const tempTicketsData = tickets.map(t => ({
+  name: t.name,
+  age: t.age,
+  army: t.army || false,
+  tempOrderId: tempOrder.id
+}));
+
+await prisma.tempTicket.createMany({
+  data: tempTicketsData
+});
 
     return res.status(200).json(
       new APiResponse(200, {
@@ -94,6 +107,9 @@ const totalTicketCount = tickets.length;
       .json(new ApiError(501, "Something went wrong while creating order"));
   }
 });
+
+
+
 
 
 export const verifyPayment = asyncHandler(async(req,res)=>{
@@ -119,17 +135,21 @@ export const verifyPayment = asyncHandler(async(req,res)=>{
         const tempOrder = await prisma.tempOrder.findUnique({
           where: {
       razorpayOrderId: razorpay_order_id
+    },
+    include:{
+      tempTickets: true
     }
         });
 
         if(!tempOrder) throw new ApiError(401,"order not foudn in db")
  
-          const slotEntry = await prisma.slotAvailability.findFirst({
+   const slotEntry = await prisma.slotAvailability.findFirst({
     where: {
       date: tempOrder.date,
       slot: tempOrder.slot,
     }
   });
+  // the upper slot entry is making code more reliable coz it will make suire for the same slot the itckets should not be pover booked !! this is handling the case 2 client initated payment together but one did fiisrst and the quota of 18 tickets gets filled sp once it is filled it is done !!
  if (!slotEntry) {
     throw new ApiError(404, "Slot not found");
   }
@@ -148,8 +168,8 @@ export const verifyPayment = asyncHandler(async(req,res)=>{
       remaining:true
     }
   });
-
-    const visitor = await prisma.visitor.create({
+  
+  const visitor = await prisma.visitor.create({
     data: {
       name: tempOrder.name,
       mobile: tempOrder.mobile,
@@ -158,14 +178,30 @@ export const verifyPayment = asyncHandler(async(req,res)=>{
           {
             quantity: tempOrder.requestedTickets,
             date: tempOrder.date,
-            slot: tempOrder.slot
-          }
-        ]
-      }
-    }
+            slot: tempOrder.slot,
+            persons: {
+              create: tempOrder.tempTickets.map(ticket => ({
+                name: ticket.name,
+                age: ticket.age,
+                army: ticket.army,
+              })),
+            },
+          },
+        ],
+      },
+    },
+    include: {
+      tickets: {
+        include: {
+          persons: true,
+        },
+      },
+    },
   });
-
-
+  
+  // deletting os that the db doesnt get pouplated 
+  await prisma.tempTicket.deleteMany({ where: { tempOrderId: tempOrder.id } });
+  await prisma.tempOrder.delete({ where: { id: tempOrder.id } });
 
 const enrichedVisitor = {
   ...visitor , 
@@ -189,30 +225,65 @@ return res.status(200).json(
 
 })
 
-export const otpVerification = asyncHandler(async(req,res)=>{
+export const otpVerification = asyncHandler(async(req,res,next)=>{
+// tkae token from the req the forntend will automatically send it 
+// decode the token 
+// check is the otp given by user here and the otp saved in our payload r they both same if yes then go ahead and give the accesss
 
-  // checking the phone number 
-  // generating the 6 digit otp
-  // generating the token on the payload of our number 
-  // jwt new secret in env file 
-  // send the cookies token in fomr of this  
+
+const {otp} = req.body; 
+
+if (!req.cookies?.GenerationOfOtpToken) {
+  throw new ApiError(401, "Token missing or expired. Please try again.");
+}
+const token = req.cookies.GenerationOfOtpToken;
+
+if(!token) throw new ApiError(401, "Somethign went wrong try again give the phone number once again");
+
+const decodedOtp = JsonWebToken.decodeToken(token);
+
+if(!decodedOtp) throw new ApiError(401,"something went wrong")
+
+  // there we go now we have access of phone number and otp 
+
+if(decodedOtp.otp !== otp) throw new ApiError(401,"wrong otp");
+
+   req.phoneNumber = decodedOtp.phoneNumber;
+
+
+})
+
+
+export const GenerateToken = asyncHandler(async(req,res)=>{
+
+  // geenrating token 
+  // will take the phone Number 
+  // will reutrn the token and otp based on the payload of the tokenn ok and the token will come in the fomrat of cookies 
 
   const{phoneNumber} = req.body;
-  // if(phoneNumber.length<10 || phoneNumber.length>10) throw new ApiError(401,"something went wron")
-  if(!phoneNumber) throw new ApiError(401, "Please enter your phone number") ;
   
-  // --> generatingOtp()// logic will come here 
+  
+if(phoneNumber.length !== 10){
+  return res.status(401).json(new ApiError(401, "Please enter a valid 10-digit Indian mobile number"));
+}
 
-  const RouteTOken = await JsonWebToken.generateToken({phoneNumber});
-  if(!RouteTOken) throw new ApiError(401, "something went wrong try again");
+  // geenrating otp and
 
-     const options = {
+  const otp = geenrateOtp(); 
+
+  const enrichedPayload = {otp  , phoneNumber}
+
+  const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken(enrichedPayload)
+  const options = {
   httpOnly: true,         // Prevent JS access (XSS safe)
   secure: true,           // Only over HTTPS (set to false in dev if needed)
   sameSite: 'Lax',        // CSRF protection (or 'None' if cross-origin + secure)
   maxAge: 10*60*1000 // 10 mintues validity in milliseconds
 };
 
-return res.status(201).cookie("RouteToken" , RouteTOken,options).json(new APiResponse(201,{RouteTOken} , "all done here is your otpVerifcation token"))
+  return res.status(201).cookie("GenerationOfOtpToken" , GenrateTokenOtpandPhoneNumber).json(new APiResponse(201,GenrateTokenOtpandPhoneNumber ,"there u go ur otp"))
+
+
+
 
 })

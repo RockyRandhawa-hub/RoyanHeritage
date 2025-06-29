@@ -13,50 +13,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Admin{
-  id Int @id @default(autoincrement())
-  FirstName String 
-  LastName String?
-  email String @unique
-  password String
-
+model Admin {
+  id        Int     @id @default(autoincrement())
+  FirstName String
+  LastName  String?
+  email     String  @unique
+  password  String
 }
+
 model SlotAvailability {
-  id          Int      @id @default(autoincrement())
-  date        DateTime
-  slot        Slot
-  totalLimit  Int      @default(18)
-  remaining   Int
-  createdAt   DateTime @default(now())
-
+  id         Int      @id @default(autoincrement())
+  date       DateTime
+  slot       Slot
+  totalLimit Int      @default(18)
+  remaining  Int
+  createdAt  DateTime @default(now())
 }
+
 model TempOrder {
-  id               Int      @id @default(autoincrement())
-  razorpayOrderId  String   @unique          // Razorpay order ID
+  id               Int          @id @default(autoincrement())
+  razorpayOrderId  String       @unique // Razorpay order ID
   name             String
   mobile           String
-  slot             Slot                     // Reuse your existing Slot enum
+  slot             Slot // Reuse your existing Slot enum
   date             DateTime
   requestedTickets Int
-  createdAt        DateTime @default(now())
+  createdAt        DateTime     @default(now())
+  tempTickets      TempTicket[] // 🔥 Back-reference added here
+}
+
+model TempTicket {
+  id          Int       @id @default(autoincrement())
+  name        String
+  age         Int
+  army        Boolean   @default(false)
+  tempOrder   TempOrder @relation(fields: [tempOrderId], references: [id])
+  tempOrderId Int
 }
 
 model Visitor {
   id         Int      @id @default(autoincrement())
   name       String
   mobile     String   @unique
-  hasVisited Boolean  @default(false)     // Track attendance
-  tickets    Ticket[]                     // One-to-many relation
+  hasVisited Boolean  @default(false) // Track attendance
+  tickets    Ticket[] // One-to-many relation
 }
+
 model Ticket {
-  id         Int       @id @default(autoincrement())
-  quantity   Int                          // Number of visitors
-  date       DateTime
-  slot       Slot                         // ENUM
-  visitor    Visitor   @relation(fields: [visitorId], references: [id])
-  visitorId  Int
-  createdAt  DateTime  @default(now())
+  id        Int      @id @default(autoincrement())
+  quantity  Int // Number of visitors
+  date      DateTime
+  slot      Slot // ENUM
+  visitor   Visitor  @relation(fields: [visitorId], references: [id])
+  visitorId Int
+  createdAt DateTime @default(now())
+  persons   Person[]
 }
+
+model Person {
+  id       Int     @id @default(autoincrement())
+  name     String
+  age      Int
+  army     Boolean @default(false)
+  ticket   Ticket  @relation(fields: [ticketId], references: [id])
+  ticketId Int
+}
+
 //  Breakdown:
 // visitor → Ye relation ka naam hai (Prisma ko bol rahe ho ki ek connection hai Ticket aur Visitor ke beech)
 
@@ -72,4 +94,3 @@ enum Slot {
   THURSDAY_EVENING
   SUNDAY_MORNING
 }
-
