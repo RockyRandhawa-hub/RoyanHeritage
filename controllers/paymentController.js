@@ -5,6 +5,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import crypto from "crypto";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { JsonWebToken } from "../services/TokenService.js";
+import { json } from "stream/consumers";
+import { tracingChannel } from "diagnostics_channel";
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -30,6 +32,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     const { requestedTickets } = req.body;
     const slotEntry = req.slotEntry;
 
+    console.log(requestedTickets == tickets.length);
+    
 let amount = 0 ;
 
 tickets.forEach((ticket)=>{
@@ -199,7 +203,7 @@ export const verifyPayment = asyncHandler(async(req,res)=>{
     },
   });
   
-  // deletting os that the db doesnt get pouplated 
+  // deletting so that the db doesnt get pouplated 
   await prisma.tempTicket.deleteMany({ where: { tempOrderId: tempOrder.id } });
   await prisma.tempOrder.delete({ where: { id: tempOrder.id } });
 
@@ -225,36 +229,32 @@ return res.status(200).json(
 
 })
 
-export const otpVerification = asyncHandler(async(req,res,next)=>{
-// tkae token from the req the forntend will automatically send it 
-// decode the token 
-// check is the otp given by user here and the otp saved in our payload r they both same if yes then go ahead and give the accesss
+export const otpVerification = asyncHandler(async(req,res)=>{
 
+  const {otp} = req.body; 
 
-const {otp} = req.body; 
+  if (!req.cookies?.GenerationOfOtpToken) {
+    throw new ApiError(401, "Token missing or expired. Please try again.");
+  }
+  
+  const token = req.cookies.GenerationOfOtpToken;
 
-if (!req.cookies?.GenerationOfOtpToken) {
-  throw new ApiError(401, "Token missing or expired. Please try again.");
-}
-const token = req.cookies.GenerationOfOtpToken;
+  if(!token) throw new ApiError(401, "Something went wrong try again give the phone number once again");
 
-if(!token) throw new ApiError(401, "Somethign went wrong try again give the phone number once again");
+  const decodedOtp = JsonWebToken.decodeToken(token);
 
-const decodedOtp = JsonWebToken.decodeToken(token);
+  if(!decodedOtp) throw new ApiError(401,"something went wrong")
 
-if(!decodedOtp) throw new ApiError(401,"something went wrong")
+  if(decodedOtp.otp !== otp) throw new ApiError(401,"wrong otp");
 
-  // there we go now we have access of phone number and otp 
-
-if(decodedOtp.otp !== otp) throw new ApiError(401,"wrong otp");
-
-   req.phoneNumber = decodedOtp.phoneNumber;
-
-
+  return res.status(201).json(new APiResponse(201, decodedOtp.phoneNumber, "Otp verified"));
 })
 
+function GenerateSixDigitAndSendTwilio(){
+  return "123456";
+}
 
-export const GenerateToken = asyncHandler(async(req,res)=>{
+export const GenerateOtp = asyncHandler(async(req,res)=>{
 
   // geenrating token 
   // will take the phone Number 
@@ -269,11 +269,12 @@ if(phoneNumber.length !== 10){
 
   // geenrating otp and
 
-  const otp = geenrateOtp(); 
+  const otp = GenerateSixDigitAndSendTwilio(); 
 
   const enrichedPayload = {otp  , phoneNumber}
 
   const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken(enrichedPayload)
+  
   const options = {
   httpOnly: true,         // Prevent JS access (XSS safe)
   secure: true,           // Only over HTTPS (set to false in dev if needed)
@@ -281,7 +282,7 @@ if(phoneNumber.length !== 10){
   maxAge: 10*60*1000 // 10 mintues validity in milliseconds
 };
 
-  return res.status(201).cookie("GenerationOfOtpToken" , GenrateTokenOtpandPhoneNumber).json(new APiResponse(201,GenrateTokenOtpandPhoneNumber ,"there u go ur otp"))
+  return res.status(201).cookie("GenerationOfOtpToken" , GenrateTokenOtpandPhoneNumber,options).json(new APiResponse(201,GenrateTokenOtpandPhoneNumber ,"there u go ur otp"))
 
 
 

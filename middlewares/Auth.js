@@ -10,11 +10,13 @@ export const authProtectedRout = asyncHandler(async(req,res,next)=>{
 
 try {
     
-        const RouteToken = req.cookies.RouteToken;
+        const RouteToken = req.cookies.GenerationOfOtpToken;
     
         if(!RouteToken) throw new ApiError(401,"you are not verified plz verify your phone number again")
             
             const verifiedPayload  = JsonWebToken.veriFyToken(RouteToken)
+            console.log(verifiedPayload);
+            
             if(!verifiedPayload ) throw new ApiError(401, "something went wrong");
     
             req.phoneNumber = verifiedPayload.phoneNumber;
