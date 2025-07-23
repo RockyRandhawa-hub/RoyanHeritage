@@ -233,11 +233,11 @@ export const otpVerification = asyncHandler(async(req,res)=>{
 
   const {otp} = req.body; 
 
-  if (!req.cookies?.GenerationOfOtpToken) {
+  if (!req.cookies?.GenerationOfEmailToken) {
     throw new ApiError(401, "Token missing or expired. Please try again.");
   }
   
-  const token = req.cookies.GenerationOfOtpToken;
+  const token = req.cookies.GenerationOfEmailToken;
 
   if(!token) throw new ApiError(401, "Something went wrong try again give the phone number once again");
 
@@ -247,7 +247,7 @@ export const otpVerification = asyncHandler(async(req,res)=>{
 
   if(decodedOtp.otp !== otp) throw new ApiError(401,"wrong otp");
 
-  return res.status(201).json(new APiResponse(201, decodedOtp.phoneNumber, "Otp verified"));
+  return res.status(201).json(new APiResponse(201, decodedOtp.email, "Otp verified"));
 })
 
 function GenerateSixDigitAndSendTwilio(){
@@ -260,18 +260,18 @@ export const GenerateOtp = asyncHandler(async(req,res)=>{
   // will take the phone Number 
   // will reutrn the token and otp based on the payload of the tokenn ok and the token will come in the fomrat of cookies 
 
-  const{phoneNumber} = req.body;
+  const{email} = req.body;
   
   
-if(phoneNumber.length !== 10){
-  return res.status(401).json(new ApiError(401, "Please enter a valid 10-digit Indian mobile number"));
+if(!email ){
+  return res.status(401).json(new ApiError(401, "Please enter a valid email Id"));
 }
 
   // geenrating otp and
 
   const otp = GenerateSixDigitAndSendTwilio(); 
 
-  const enrichedPayload = {otp  , phoneNumber}
+  const enrichedPayload = {otp  , email}
 
   const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken(enrichedPayload)
   
@@ -282,7 +282,7 @@ if(phoneNumber.length !== 10){
   maxAge: 10*60*1000 // 10 mintues validity in milliseconds
 };
 
-  return res.status(201).cookie("GenerationOfOtpToken" , GenrateTokenOtpandPhoneNumber,options).json(new APiResponse(201,GenrateTokenOtpandPhoneNumber ,"there u go ur otp"))
+  return res.status(201).cookie("GenerationOfEmailToken" , GenrateTokenOtpandPhoneNumber,options).json(new APiResponse(201,GenrateTokenOtpandPhoneNumber ,"there u go ur otp"))
 
 
 
