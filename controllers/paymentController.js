@@ -153,7 +153,7 @@ export const verifyPayment = asyncHandler(async(req,res)=>{
       slot: tempOrder.slot,
     }
   });
-  // the upper slot entry is making code more reliable coz it will make suire for the same slot the itckets should not be pover booked !! this is handling the case 2 client initated payment together but one did fiisrst and the quota of 18 tickets gets filled sp once it is filled it is done !!
+  // the upper slot entry is making code more reliable coz it will make suire for the same slot the tickkets should not be pover booked !! this is handling the case 2 client initated payment together but one did fiisrst and the quota of 18 tickets gets filled sp once it is filled it is done !!
  if (!slotEntry) {
     throw new ApiError(404, "Slot not found");
   }
