@@ -89,6 +89,7 @@ model Person {
 // fields: [visitorId] → Is model (Ticket) ka field visitorId foreign key banega
 
 // references: [id] → Ye Visitor model ke id field ko point karega
+
 enum Slot {
   TUESDAY_EVENING
   THURSDAY_EVENING

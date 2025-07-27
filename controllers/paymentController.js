@@ -8,6 +8,8 @@ import { JsonWebToken } from "../services/TokenService.js";
 import { json } from "stream/consumers";
 import { tracingChannel } from "diagnostics_channel";
 import { log } from "console";
+import { sendEmail } from "../utils/mailsender.js";
+
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -226,7 +228,7 @@ return res.status(200).json(
           razorpay_order_id,
           razorpay_payment_id,
           visitor : enrichedVisitor,
-        
+          
         },
         "Payment verified successfully"
       )
@@ -264,8 +266,9 @@ export const otpVerification = asyncHandler(async(req,res)=>{
   return res.status(201).json(new APiResponse(201, decodedOtp.email, "Otp verified"));
 })
 
-function GenerateSixDigitAndSendTwilio(){
-  return "123456";
+function GenerateAndSendSixDigitEmail(){
+    return Math.floor(100000 + Math.random() * 900000).toString();
+
 }
 
 export const GenerateOtp = asyncHandler(async(req,res)=>{
@@ -283,7 +286,38 @@ if(!email ){
 
   // geenrating otp and
 
-  const otp = GenerateSixDigitAndSendTwilio(); 
+  const otp = GenerateAndSendSixDigitEmail(); 
+
+   const emailHTML = `
+  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: auto; background: #f4f4f4; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.15);">
+    <div style="background-color: #1e1e2f; padding: 20px; border-radius: 10px 10px 0 0; color: white; text-align: center;">
+      <h2 style="margin: 0; font-size: 24px;">🚀 OTP Verification</h2>
+    </div>
+    <div style="background: #ffffff; padding: 20px; border-radius: 0 0 10px 10px;">
+      <p style="font-size: 16px; color: #333;">Hello 👋</p>
+      <p style="font-size: 16px; color: #333;">Thanks for connecting with us. Please use the following One-Time Password (OTP) to verify your email address:</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <span style="display: inline-block; background-color: #1e1e2f; color: white; font-size: 30px; letter-spacing: 5px; padding: 15px 30px; border-radius: 8px; font-weight: bold;">
+          ${otp}
+        </span>
+      </div>
+
+      <p style="font-size: 14px; color: #777;">This OTP is valid for the next <strong>10 minutes</strong>. Do not share it with anyone.</p>
+
+      <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;" />
+
+      <p style="font-size: 12px; color: #999; text-align: center;">
+        If you didn’t request this, you can safely ignore this email.<br />
+        — Team MCME 🔐
+      </p>
+    </div>
+  </div>
+`;
+    await sendEmail(email, "Your OTP Code", emailHTML);
+
+    // mgyi dpdi pfzi ozzb
+
 
   const enrichedPayload = {otp  , email}
 
@@ -302,3 +336,5 @@ if(!email ){
 
 
 })
+
+
