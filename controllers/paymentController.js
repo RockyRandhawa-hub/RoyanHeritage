@@ -326,7 +326,7 @@ if(!email ){
   const options = {
   httpOnly: true,         // Prevent JS access (XSS safe)
   secure: true,           // Only over HTTPS (set to false in dev if needed)
-  sameSite: 'Lax',        // CSRF protection (or 'None' if cross-origin + secure)
+  sameSite: 'None',        // CSRF protection (or 'None' if cross-origin + secure)
   maxAge: 10*60*1000 // 10 mintues validity in milliseconds
 };
 
