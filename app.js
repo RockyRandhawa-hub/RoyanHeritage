@@ -2,7 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { adminRouter } from './routes/adminRoutes.js';
-import { PaymentRoute } from './routes/paymentRoute.js';  // path must be correct
+import { PaymentRoute } from    './routes/PaymentRoute.js'  // ath must be correct
 import { otpVerificationRouter } from './routes/otpVerification.js';
 
 const app = express() ;

@@ -7,6 +7,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import { JsonWebToken } from "../services/TokenService.js";
 import { json } from "stream/consumers";
 import { tracingChannel } from "diagnostics_channel";
+import { log } from "console";
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -17,7 +18,13 @@ const prisma = new PrismaClient()
 export const createOrder = asyncHandler(async (req, res) => {
   try {
     
-    const { name, mobile , tickets } = req.body;
+    const {  tickets } = req.body;
+
+    const name = tickets[0]["name"]
+
+    const mobile = tickets[0]["phone"]
+    console.log(name , mobile);
+    
 
     if (!name || !mobile) {
       throw new ApiError(400, "Name and Mobile are required");
@@ -29,10 +36,9 @@ export const createOrder = asyncHandler(async (req, res) => {
       throw new ApiError(401,"Something went wrong")
     }
 
-    const { requestedTickets } = req.body;
+    const { requestedTickets } = tickets.length;
     const slotEntry = req.slotEntry;
 
-    console.log(requestedTickets == tickets.length);
     
 let amount = 0 ;
 
@@ -40,15 +46,17 @@ tickets.forEach((ticket)=>{
 const {army=false ,age } = ticket;
 
 // there the ticket is noting but an array of object and now ill hvae every instance meaasn every object of ticket present inside it !! now lets ddo the magic 
-
 if(army){
-  amount += 50;
+  amount += 100;
 }else if(age <= 5){
   amount += 0;
 }else if(age > 5 && age < 18){
-  amount += 50
-}else{
-  amount += 100;
+  amount += 100
+}else if(age>59){
+  amount += 100
+}
+else{
+  amount += 200;
 }
 
 })
@@ -86,7 +94,7 @@ const totalTicketCount = tickets.length;
 
         const tempTicketsData = tickets.map(t => ({
   name: t.name,
-  age: t.age,
+  age: Number(t.age),
   army: t.army || false,
   tempOrderId: tempOrder.id
 }));
@@ -237,11 +245,17 @@ export const otpVerification = asyncHandler(async(req,res)=>{
     throw new ApiError(401, "Token missing or expired. Please try again.");
   }
   
-  const token = req.cookies.GenerationOfEmailToken;
+  const token = req.cookies?.GenerationOfEmailToken;
+
+  console.log(token);
+  
 
   if(!token) throw new ApiError(401, "Something went wrong try again give the phone number once again");
 
   const decodedOtp = JsonWebToken.decodeToken(token);
+
+  console.log(decodedOtp);
+  
 
   if(!decodedOtp) throw new ApiError(401,"something went wrong")
 

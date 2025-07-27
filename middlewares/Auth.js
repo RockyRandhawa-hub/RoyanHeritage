@@ -1,27 +1,37 @@
 import { JsonWebToken } from "../services/TokenService.js";
 import { ApiError } from "../utils/ApiError.js";
-import { APiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
+export const authProtectedRout = asyncHandler(async(req, res, next) => {
+    try {
+        const RouteToken = req.cookies?.GenerationOfEmailToken;
+        console.log(`route token is there`);
+        
+        if(!RouteToken) {
+            throw new ApiError(401, "you are not verified plz verify your phone number again");
+        }
+        
+        console.log(`route token is verified`);
+        
+        const verifiedPayload = JsonWebToken.veriFyToken(RouteToken);
+        console.log(verifiedPayload, "the payload is there");
 
-export const authProtectedRout = asyncHandler(async(req,res,next)=>{
-    
+        if(!verifiedPayload) {
+            throw new ApiError(401, "Invalid or expired token");
+        }
 
-
-try {
-    
-        const RouteToken = req.cookies.GenerationOfOtpToken;
-    
-        if(!RouteToken) throw new ApiError(401,"you are not verified plz verify your phone number again")
-            
-            const verifiedPayload  = JsonWebToken.veriFyToken(RouteToken)
-            console.log(verifiedPayload);
-            
-            if(!verifiedPayload ) throw new ApiError(401, "something went wrong");
-    
-            req.phoneNumber = verifiedPayload.phoneNumber;
-                next();    
-} catch (error) {
-    throw new ApiError(401, "something went wrong")
- }
-})
+        req.email = verifiedPayload.email;
+        console.log(`everything seems working`);
+        
+        next();    
+    } catch (error) {
+        console.error('Auth middleware error:', error);
+        
+        // Don't throw a generic error, let the original error propagate
+        if (error instanceof ApiError) {
+            throw error;
+        } else {
+            throw new ApiError(401, `Authentication failed: ${error.message}`);
+        }
+    }
+});

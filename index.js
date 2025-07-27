@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import  dotenv  from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import {app} from './app.js'
 
@@ -15,7 +15,7 @@ prisma.$connect()
         
     })
     
-}).catch((err)=>{
+}).catch((err)=>{  
     console.error('🔴 Prisma connection error:', err);
     
 })

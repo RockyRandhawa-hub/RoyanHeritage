@@ -10,3 +10,5 @@ otpVerificationRouter.route("/generateOtp").post(GenerateOtp)
 otpVerificationRouter.route("/verifyOtp").post(otpVerification)
 
 export {otpVerificationRouter}
+
+

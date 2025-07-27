@@ -4,7 +4,13 @@ import { ApiError } from "../utils/ApiError.js";
 const prisma = new PrismaClient();
 
 export const checkSlotAndLimit = async (req, res, next) => {
-  const { date, slot, requestedTickets } = req.body;
+  const { tickets } = req.body;
+
+  const requestedTickets = tickets.length;
+
+  const date = tickets[0]["date"]
+
+  const slot = tickets[0]["slot"]
 
   console.log("Received data:", { date, slot, requestedTickets }); // Debug log
 
