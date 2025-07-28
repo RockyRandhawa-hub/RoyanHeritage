@@ -10,7 +10,8 @@ app.use(cookieParser())
 app.use(cors({
   origin: [
     "http://localhost:5173",
-    "https://reactpractce-rep.vercel.app"
+    "https://reactpractce-rep.vercel.app",
+    "https://final-frontendrthing.vercel.app"
   ],
   credentials: true
 }));
