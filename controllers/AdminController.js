@@ -125,7 +125,7 @@ const loginCOntroller = asyncHandler(async(req,res)=>{
       const options = {
   httpOnly: true,         // Prevent JS access (XSS safe)
   secure: true,           // Only over HTTPS (set to false in dev if needed)
-  sameSite: 'Lax',        // CSRF protection (or 'None' if cross-origin + secure)
+  sameSite: 'None',        // CSRF protection (or 'None' if cross-origin + secure)
   maxAge: 24 * 60 * 60 * 1000 // 1 day validity in milliseconds
 };
 
@@ -133,4 +133,55 @@ const loginCOntroller = asyncHandler(async(req,res)=>{
     
 })
 
-export{registerController , loginCOntroller}
+const AdminPannelController = asyncHandler(async(req,res)=>{
+
+  try {
+    const allVisitors = await prisma.visitor.findMany({
+      include: {
+        tickets: {
+          include: {
+            persons: true,
+          },
+        },
+      },
+    });
+
+    // Transform to match your frontend template
+    const formattedData = allVisitors.map(visitor => ({
+      // Generate placeholder or get from elsewhere
+      razorpay_order_id: `order_${visitor.id}_${Date.now()}`,
+      razorpay_payment_id: `pay_${visitor.id}_${Date.now()}`,
+      visitor: {
+        id: visitor.id,
+        name: visitor.name,
+        mobile: visitor.mobile,
+        hasVisited: visitor.hasVisited,
+        requestedTicketInfo: `Total number of requested tickets you asked for is ${visitor.tickets[0]?.quantity || 0}`,
+        tickets: visitor.tickets.map(ticket => ({
+          id: ticket.id,
+          quantity: ticket.quantity,
+          date: ticket.date,
+          slot: ticket.slot,
+          createdAt: ticket.createdAt,
+          persons: ticket.persons.map(person => ({
+            id: person.id,
+            name: person.name,
+            age: person.age,
+            army: person.army,
+            ticketId: person.ticketId,
+          })),
+        })),
+      },
+    }));
+
+    res.status(201).json(formattedData);
+  } catch (error) {
+    console.error('Error fetching visitors:', error);
+    res.status(500).json({ error: 'Failed to fetch visitors' });
+  }
+});
+    
+
+
+
+export{registerController , loginCOntroller,AdminPannelController}

@@ -55,8 +55,8 @@ model Visitor {
   id         Int      @id @default(autoincrement())
   name       String
   mobile     String   @unique
-  hasVisited Boolean  @default(false) // Track attendance
-  tickets    Ticket[] // One-to-many relation
+  hasVisited Boolean  @default(false)
+  tickets    Ticket[]
 }
 
 model Ticket {
