@@ -32,7 +32,7 @@ model SlotAvailability {
 
 model TempOrder {
   id               Int          @id @default(autoincrement())
-  razorpayOrderId  String       @unique // Razorpay order ID
+  razorpayOrderId  String       // Razorpay order ID
   name             String
   mobile           String
   slot             Slot // Reuse your existing Slot enum
@@ -54,7 +54,7 @@ model TempTicket {
 model Visitor {
   id         Int      @id @default(autoincrement())
   name       String
-  mobile     String   @unique
+  mobile     String   
   hasVisited Boolean  @default(false)
   tickets    Ticket[]
 }
