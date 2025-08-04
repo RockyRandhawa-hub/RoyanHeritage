@@ -173,6 +173,8 @@ export const verifyPayment = asyncHandler(async(req,res)=>{
     throw new ApiError(400, "Not enough tickets remaining");
   }
 
+  
+
      await prisma.slotAvailability.update({
     where: { id: slotEntry.id },
     data: {
