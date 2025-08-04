@@ -30,16 +30,17 @@ model SlotAvailability {
   createdAt  DateTime @default(now())
 }
 
+
 model TempOrder {
   id               Int          @id @default(autoincrement())
-  razorpayOrderId  String       // Razorpay order ID
+  razorpayOrderId  String       @unique  // ✅ ADD @unique here
   name             String
   mobile           String
-  slot             Slot // Reuse your existing Slot enum
+  slot             Slot
   date             DateTime
   requestedTickets Int
   createdAt        DateTime     @default(now())
-  tempTickets      TempTicket[] // 🔥 Back-reference added here
+  tempTickets      TempTicket[]
 }
 
 model TempTicket {
