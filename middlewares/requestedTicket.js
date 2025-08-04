@@ -12,6 +12,9 @@ export const checkSlotAndLimit = async (req, res, next) => {
 
   const slot = tickets[0]["slot"]
 
+  console.log(slot);
+  
+
   console.log("Received data:", { date, slot, requestedTickets }); // Debug log
 
   if (!date || !slot || !requestedTickets) {
