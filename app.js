@@ -12,7 +12,7 @@ app.use(cors({
     "http://localhost:5173",
     "https://reactpractce-rep.vercel.app",
     "https://final-frontendrthing.vercel.app",
-    "https://www.theheritagewalk.in/",
+    "https://www.theheritagewalk.in",
   ],
   credentials: true
 }));
