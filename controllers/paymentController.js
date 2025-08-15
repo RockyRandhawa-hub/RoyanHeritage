@@ -10,12 +10,30 @@ import { tracingChannel } from "diagnostics_channel";
 import { log } from "console";
 import { sendEmail } from "../utils/mailsender.js";
 
+import { createClient } from 'redis';
+import session from "express-session";
+const prisma = new PrismaClient()
+
 
 const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_SECRET,
 });
-const prisma = new PrismaClient()
+
+console.log(process.env.REDIS_URL);
+
+
+const redisClient= createClient({
+  url: process.env.REDIS_URL,
+ token:"AbAbAAIncDFmZWU3ZTE1Y2E2Mzc0ZDI0OWJkYWEwNDYxN2ViNmRmNHAxNDUwODM"
+})
+
+redisClient.on('error', (err)=> console.log(` ${err} ,  something went wrong redis error it is `))
+
+await redisClient.connect();
+
+console.log(`redis connection established`);
+
 
 export const createOrder = asyncHandler(async (req, res) => {
   try {
@@ -245,28 +263,36 @@ export const otpVerification = asyncHandler(async(req,res)=>{
 
   const {otp} = req.body; 
 
+  // Check if cookie exists (for frontend protected routes)
   if (!req.cookies?.GenerationOfEmailToken) {
     throw new ApiError(401, "Token missing or expired. Please try again.");
   }
   
-  const token = req.cookies?.GenerationOfEmailToken;
-
-  console.log(token);
+  // Get email from session (stored during OTP generation)
+  const email = req?.session?.email;
   
+  if(!email) {
+    throw new ApiError(401, "Session expired. Please generate OTP again.");
+  }
 
-  if(!token) throw new ApiError(401, "Something went wrong try again give the phone number once again");
-
-  const decodedOtp = JsonWebToken.decodeToken(token);
-
-  console.log(decodedOtp);
+  // Get stored OTP from Redis
+  const storedOtp = await redisClient.get(email);
   
+  if(!storedOtp) {
+    throw new ApiError(401, "OTP expired or not found. Please generate a new OTP.");
+  }
 
-  if(!decodedOtp) throw new ApiError(401,"something went wrong")
+  // Compare provided OTP with stored OTP
+  if(storedOtp !== otp) {
+    throw new ApiError(401, "Invalid OTP. Please try again.");
+  }
 
-  if(decodedOtp.otp !== otp) throw new ApiError(401,"wrong otp");
+  // OTP verified successfully, clean up Redis
+  await redisClient.del(email);
 
-  return res.status(201).json(new APiResponse(201, decodedOtp.email, "Otp verified"));
-})
+  return res.status(201).json(new APiResponse(201, {email}, "OTP verified successfully"));
+});
+
 
 function GenerateAndSendSixDigitEmail(){
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -275,68 +301,61 @@ function GenerateAndSendSixDigitEmail(){
 
 export const GenerateOtp = asyncHandler(async(req,res)=>{
 
-  // geenrating token 
-  // will take the phone Number 
-  // will reutrn the token and otp based on the payload of the tokenn ok and the token will come in the fomrat of cookies 
-
   const{email} = req.body;
   
-  
-if(!email ){
-  return res.status(401).json(new ApiError(401, "Please enter a valid email Id"));
-}
+  if(!email ){
+    return res.status(401).json(new ApiError(401, "Please enter a valid email Id"));
+  }
 
-  // geenrating otp and
-
+  // generating otp
   const otp = GenerateAndSendSixDigitEmail(); 
 
-   const emailHTML = `
-  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: auto; background: #f4f4f4; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.15);">
-    <div style="background-color: #1e1e2f; padding: 20px; border-radius: 10px 10px 0 0; color: white; text-align: center;">
-      <h2 style="margin: 0; font-size: 24px;">🚀 OTP Verification</h2>
-    </div>
-    <div style="background: #ffffff; padding: 20px; border-radius: 0 0 10px 10px;">
-      <p style="font-size: 16px; color: #333;">Hello 👋</p>
-      <p style="font-size: 16px; color: #333;">Thanks for connecting with us. Please use the following One-Time Password (OTP) to verify your email address:</p>
-      
-      <div style="text-align: center; margin: 30px 0;">
-        <span style="display: inline-block; background-color: #1e1e2f; color: white; font-size: 30px; letter-spacing: 5px; padding: 15px 30px; border-radius: 8px; font-weight: bold;">
-          ${otp}
-        </span>
+  const emailHTML = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: auto; background: #f4f4f4; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.15);">
+      <div style="background-color: #1e1e2f; padding: 20px; border-radius: 10px 10px 0 0; color: white; text-align: center;">
+        <h2 style="margin: 0; font-size: 24px;">🚀 OTP Verification</h2>
       </div>
+      <div style="background: #ffffff; padding: 20px; border-radius: 0 0 10px 10px;">
+        <p style="font-size: 16px; color: #333;">Hello 👋</p>
+        <p style="font-size: 16px; color: #333;">Thanks for connecting with us. Please use the following One-Time Password (OTP) to verify your email address:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <span style="display: inline-block; background-color: #1e1e2f; color: white; font-size: 30px; letter-spacing: 5px; padding: 15px 30px; border-radius: 8px; font-weight: bold;">
+            ${otp}
+          </span>
+        </div>
 
-      <p style="font-size: 14px; color: #777;">This OTP is valid for the next <strong>10 minutes</strong>. Do not share it with anyone.</p>
+        <p style="font-size: 14px; color: #777;">This OTP is valid for the next <strong>10 minutes</strong>. Do not share it with anyone.</p>
 
-      <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;" />
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;" />
 
-      <p style="font-size: 12px; color: #999; text-align: center;">
-        If you didn’t request this, you can safely ignore this email.<br />
-        — Team MCME 🔐
-      </p>
+        <p style="font-size: 12px; color: #999; text-align: center;">
+          If you didn't request this, you can safely ignore this email.<br />
+          — Team MCME 🔐
+        </p>
+      </div>
     </div>
-  </div>
-`;
-    await sendEmail(email, "Your OTP Code", emailHTML);
+  `;
+  
+  await sendEmail(email, "Your OTP Code", emailHTML);
 
-    // mgyi dpdi pfzi ozzb
+  // Store email in session for later verification
+  req.session.email = email;
 
+  // Store OTP in Redis with email as key, expires in 10 minutes (600 seconds)
+  await redisClient.setEx(email, 600, otp);
 
-  const enrichedPayload = {otp  , email}
-
-  const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken(enrichedPayload)
+  // Generate token for cookie (keeping same cookie name for frontend)
+  const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken({email});
   
   const options = {
-  httpOnly: true,         // Prevent JS access (XSS safe)
-  secure: true,           // Only over HTTPS (set to false in dev if needed)
-  sameSite: 'None',        // CSRF protection (or 'None' if cross-origin + secure)
-  maxAge: 10*60*1000 // 10 mintues validity in milliseconds
-};
+    httpOnly: true,         // Prevent JS access (XSS safe)
+    secure: true,  // Only over HTTPS in production
+    sameSite: 'None',        // CSRF protection
+    maxAge: 10*60*1000      // 10 minutes validity in milliseconds
+  };
 
-  return res.status(201).cookie("GenerationOfEmailToken" , GenrateTokenOtpandPhoneNumber,options).json(new APiResponse(201,GenrateTokenOtpandPhoneNumber ,"there u go ur otp"))
-
-
-
-
-})
-
-
+  return res.status(201)
+    .cookie("GenerationOfEmailToken", GenrateTokenOtpandPhoneNumber, options)
+    .json(new APiResponse(201, GenrateTokenOtpandPhoneNumber, "OTP sent successfully"));
+});
