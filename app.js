@@ -38,7 +38,6 @@ app.use(session({
     httpOnly: true,         // Not accessible via JS
     sameSite: 'None',       // ✅ Required for cross-site cookies in production
     maxAge: 10 * 60 * 1000, // 10 minutes
-    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined // ✅ Set domain for production
   }
 }));
 
