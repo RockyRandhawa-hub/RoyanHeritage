@@ -20,19 +20,8 @@ const razorpayInstance = new Razorpay({
   key_secret: process.env.RAZORPAY_SECRET,
 });
 
-console.log(process.env.REDIS_URL);
 
 
-export const redisClient= createClient({
-  url: process.env.REDIS_URL,
- token:"AbAbAAIncDFmZWU3ZTE1Y2E2Mzc0ZDI0OWJkYWEwNDYxN2ViNmRmNHAxNDUwODM"
-})
-
-redisClient.on('error', (err)=> console.log(` ${err} ,  something went wrong redis error it is `))
-
-await redisClient.connect();
-
-console.log(`redis connection established`);
 
 
 export const createOrder = asyncHandler(async (req, res) => {
@@ -261,51 +250,9 @@ return res.status(200).json(
 
 export const otpVerification = asyncHandler(async(req, res) => {
   const { otp } = req.body; 
-
-  // Check if cookie exists
-  if (!req.cookies?.GenerationOfEmailToken) {
-    throw new ApiError(401, "Token missing or expired. Please try again.");
-  }
-  
-  // Get email from session
-  const email = req.session?.email;
-  console.log('Session email:', email);
-  console.log('Session ID:', req.sessionID);
-  console.log('Full session:', req.session);
-  
-  if (!email) {
-    throw new ApiError(401, "Session expired. Please generate OTP again.");
-  }
-
-  // Get stored OTP from Redis
-  let storedOtp;
-  try {
-    storedOtp = await redisClient.get(email);
-    console.log('Stored OTP from Redis:', storedOtp);
-  } catch (error) {
-    console.error('Redis get error:', error);
-    throw new ApiError(500, "Failed to retrieve OTP. Please try again.");
-  }
-
-  if (!storedOtp) {
-    throw new ApiError(401, "OTP expired or not found. Please generate a new OTP.");
-  }
-
-  // Compare provided OTP with stored OTP
-  if (storedOtp !== otp) {
-    throw new ApiError(401, "Invalid OTP. Please try again.");
-  }
-
-  // OTP verified successfully, clean up Redis
-  try {
-    await redisClient.del(email);
-  } catch (error) {
-    console.error('Redis delete error:', error);
-    // Continue anyway as verification was successful
-  }
-
-  return res.status(201).json(new APiResponse(201, { email }, "OTP verified successfully"));
-});
+    if(!otp) return res.status(401).json({message:"wrong otp"})
+      return res.status(201).json(new APiResponse(201,{otp}))
+})
 
 
 
