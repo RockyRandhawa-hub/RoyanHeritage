@@ -270,14 +270,17 @@ export const otpVerification = asyncHandler(async(req,res)=>{
   
   // Get email from session (stored during OTP generation)
   const email = req?.session?.email;
+  console.log(email);
   
-  if(!email) {
-    throw new ApiError(401, "Session expired. Please generate OTP again.");
-  }
+  // if(!email) {
+  //   throw new ApiError(401, "Session expired. Please generate OTP again.");
+  // }
 
   // Get stored OTP from Redis
   const storedOtp = await redisClient.get(email);
+  console.log(storedOtp, "hey this is something crazy good");
   
+
   if(!storedOtp) {
     throw new ApiError(401, "OTP expired or not found. Please generate a new OTP.");
   }
@@ -341,6 +344,8 @@ export const GenerateOtp = asyncHandler(async(req,res)=>{
 
   // Store email in session for later verification
   req.session.email = email;
+
+console.log(req.session.email , "hey there this is something newww neww nww");
 
   // Store OTP in Redis with email as key, expires in 10 minutes (600 seconds)
   await redisClient.setEx(email, 600, otp);
