@@ -259,42 +259,54 @@ return res.status(200).json(
 
 })
 
-export const otpVerification = asyncHandler(async(req,res)=>{
+export const otpVerification = asyncHandler(async(req, res) => {
+  const { otp } = req.body; 
 
-  const {otp} = req.body; 
-
-  // Check if cookie exists (for frontend protected routes)
+  // Check if cookie exists
   if (!req.cookies?.GenerationOfEmailToken) {
     throw new ApiError(401, "Token missing or expired. Please try again.");
   }
   
-  // Get email from session (stored during OTP generation)
-  const email = req?.session?.email;
-  console.log(email);
+  // Get email from session
+  const email = req.session?.email;
+  console.log('Session email:', email);
+  console.log('Session ID:', req.sessionID);
+  console.log('Full session:', req.session);
   
-  // if(!email) {
-  //   throw new ApiError(401, "Session expired. Please generate OTP again.");
-  // }
+  if (!email) {
+    throw new ApiError(401, "Session expired. Please generate OTP again.");
+  }
 
   // Get stored OTP from Redis
-  const storedOtp = await redisClient.get(email);
-  console.log(storedOtp, "hey this is something crazy good");
-  
+  let storedOtp;
+  try {
+    storedOtp = await redisClient.get(email);
+    console.log('Stored OTP from Redis:', storedOtp);
+  } catch (error) {
+    console.error('Redis get error:', error);
+    throw new ApiError(500, "Failed to retrieve OTP. Please try again.");
+  }
 
-  if(!storedOtp) {
+  if (!storedOtp) {
     throw new ApiError(401, "OTP expired or not found. Please generate a new OTP.");
   }
 
   // Compare provided OTP with stored OTP
-  if(storedOtp !== otp) {
+  if (storedOtp !== otp) {
     throw new ApiError(401, "Invalid OTP. Please try again.");
   }
 
   // OTP verified successfully, clean up Redis
-  await redisClient.del(email);
+  try {
+    await redisClient.del(email);
+  } catch (error) {
+    console.error('Redis delete error:', error);
+    // Continue anyway as verification was successful
+  }
 
-  return res.status(201).json(new APiResponse(201, {email}, "OTP verified successfully"));
+  return res.status(201).json(new APiResponse(201, { email }, "OTP verified successfully"));
 });
+
 
 
 function GenerateAndSendSixDigitEmail(){
@@ -302,15 +314,15 @@ function GenerateAndSendSixDigitEmail(){
 
 }
 
-export const GenerateOtp = asyncHandler(async(req,res)=>{
 
-  const{email} = req.body;
+export const GenerateOtp = asyncHandler(async(req, res) => {
+  const { email } = req.body;
   
-  if(!email ){
+  if (!email) {
     return res.status(401).json(new ApiError(401, "Please enter a valid email Id"));
   }
 
-  // generating otp
+  // Generate OTP
   const otp = GenerateAndSendSixDigitEmail(); 
 
   const emailHTML = `
@@ -340,27 +352,48 @@ export const GenerateOtp = asyncHandler(async(req,res)=>{
     </div>
   `;
   
-  await sendEmail(email, "Your OTP Code", emailHTML);
+  try {
+    await sendEmail(email, "Your OTP Code", emailHTML);
+  } catch (error) {
+    console.error('Email sending error:', error);
+    throw new ApiError(500, "Failed to send OTP email. Please try again.");
+  }
 
-  // Store email in session for later verification
+  // Store email in session
   req.session.email = email;
+  
+  // Save session explicitly to ensure it's persisted
+  req.session.save((err) => {
+    if (err) {
+      console.error('Session save error:', err);
+    } else {
+      console.log('Session saved successfully');
+    }
+  });
 
-console.log(req.session.email , "hey there this is something newww neww nww");
+  console.log('Setting session email:', req.session.email);
+  console.log('Session ID:', req.sessionID);
 
-  // Store OTP in Redis with email as key, expires in 10 minutes (600 seconds)
-  await redisClient.setEx(email, 600, otp);
+  // Store OTP in Redis
+  try {
+    await redisClient.setEx(email, 600, otp);
+    console.log('OTP stored in Redis successfully');
+  } catch (error) {
+    console.error('Redis setEx error:', error);
+    throw new ApiError(500, "Failed to store OTP. Please try again.");
+  }
 
-  // Generate token for cookie (keeping same cookie name for frontend)
-  const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken({email});
+  // Generate token for cookie
+  const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken({ email });
   
   const options = {
-    httpOnly: true,         // Prevent JS access (XSS safe)
-    secure: true,  // Only over HTTPS in production
-    sameSite: 'None',        // CSRF protection
-    maxAge: 10*60*1000      // 10 minutes validity in milliseconds
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax', // Changed to lowercase
+    maxAge: 10 * 60 * 1000
   };
 
   return res.status(201)
     .cookie("GenerationOfEmailToken", GenrateTokenOtpandPhoneNumber, options)
-    .json(new APiResponse(201, GenrateTokenOtpandPhoneNumber, "OTP sent successfully"));
+    .json(new APiResponse(201, { sessionId: req.sessionID }, "OTP sent successfully"));
 });
