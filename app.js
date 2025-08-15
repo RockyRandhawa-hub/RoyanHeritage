@@ -5,15 +5,45 @@ import session from 'express-session';
 import { adminRouter } from './routes/adminRoutes.js';
 import { PaymentRoute } from './routes/PaymentRoute.js';
 import { otpVerificationRouter } from './routes/otpVerification.js';
-import { redisClient } from './controllers/paymentController.js';
-import { RedisStore } from 'connect-redis';
+import { redisClient } from './controllers/paymentController.js';    // ⚠️ Make sure it's NOT imported from a controller
+
+// ✅ Fixed import for connect-redis using createRequire for compatibility
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const connectRedis = require('connect-redis');
 
 const app = express();
 
-// ✅ Trust proxy for deployment platforms
+// ✅ Create RedisStore after importing session
+const RedisStore = connectRedis(session);
+
+// ✅ Required to make secure cookies work behind Render/Vercel proxies
 app.set('trust proxy', 1);
 
-// ✅ CORS must be configured BEFORE session middleware
+// ✅ Cookie parser first
+app.use(cookieParser());
+
+// ✅ Session middleware with corrected RedisStore initialization
+app.use(session({
+  store: new RedisStore({ 
+    client: redisClient,
+    prefix: "myapp:", // Optional: prefix for Redis keys
+  }),
+  secret: 'your-strong-random-secret', // Store in .env
+  resave: false,
+  saveUninitialized: true,  // ✅ Changed to true to ensure session creation
+  name: 'sessionId', // ✅ Custom session name
+  cookie: {
+    secure: true,           // ✅ Always true in production (Render uses HTTPS)
+    httpOnly: true,         // Not accessible via JS
+    sameSite: 'None',       // ✅ Required for cross-site cookies in production
+    maxAge: 10 * 60 * 1000, // 10 minutes
+    domain: process.env.NODE_ENV === 'production' ? '.onrender.com' : undefined // ✅ Set domain for production
+  }
+}));
+
+console.log(`🟢 Server init...`);
+
 app.use(cors({
   origin: [
     "http://localhost:5173",
@@ -21,35 +51,15 @@ app.use(cors({
     "https://final-frontendrthing.vercel.app",
     "https://www.theheritagewalk.in",
   ],
-  credentials: true  // This is crucial for sessions to work
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  exposedHeaders: ['Set-Cookie']
 }));
 
-// ✅ Body parsers before session
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-
-// ✅ Session middleware configuration
-app.use(session({
-  store: new RedisStore({ 
-    client: redisClient,
-    prefix: "myapp:",
-  }),
-  secret: process.env.SESSION_SECRET || 'your-strong-random-secret-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  name: 'sessionId', // Custom session cookie name
-  cookie: {
-    secure: true, // Only HTTPS in production
-    httpOnly: true,        // Prevent XSS attacks
-    sameSite: 'None',      // Changed from 'Lax' to lowercase
-    maxAge: 10 * 60 * 1000  // 10 minutes
-  }
-}));
-
 app.use(express.static("public"));
-
-console.log(`🟢 Server init...`);
 
 // ✅ Routes
 app.use("/api/v1/admin", adminRouter);
