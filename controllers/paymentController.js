@@ -307,28 +307,10 @@ export const GenerateOtp = asyncHandler(async(req, res) => {
   }
 
   // Store email in session
-  req.session.email = email;
   
   // Save session explicitly to ensure it's persisted
-  req.session.save((err) => {
-    if (err) {
-      console.error('Session save error:', err);
-    } else {
-      console.log('Session saved successfully');
-    }
-  });
 
-  console.log('Setting session email:', req.session.email);
-  console.log('Session ID:', req.sessionID);
 
-  // Store OTP in Redis
-  try {
-    await redisClient.setEx(email, 600, otp);
-    console.log('OTP stored in Redis successfully');
-  } catch (error) {
-    console.error('Redis setEx error:', error);
-    throw new ApiError(500, "Failed to store OTP. Please try again.");
-  }
 
   // Generate token for cookie
   const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken({ email });
