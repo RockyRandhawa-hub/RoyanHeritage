@@ -2,24 +2,28 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { adminRouter } from './routes/adminRoutes.js';
+import RedisStore from 'connect-redis';
+
 import { PaymentRoute } from    './routes/PaymentRoute.js'  // ath must be correct
 import { otpVerificationRouter } from './routes/otpVerification.js';
 import session from 'express-session';
+import { redisClient } from './controllers/paymentController.js';
 
 const app = express() ;
 app.use(cookieParser())
     
+app.set('trust proxy', 1); // 🔥 Required on Render for secure cookies
+
 app.use(session({
-  secret: 'qwerty@1234', // Change this to a random string
+  store: new RedisStore({ client: redisClient }),
+  secret: 'your-strong-random-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { 
-    secure: true, // Set to true if using HTTPS
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours,
-    httpOnly:true,
-    sameSite: 'None',
-
-
+  cookie: {
+    secure: true,           // 🔒 Only over HTTPS
+    httpOnly: true,         // 🔒 Protect from XSS
+    sameSite: 'None',       // ✅ Needed for cross-site cookies (e.g., frontend on different domain)
+    maxAge: 10 * 60 * 1000  // 10 minutes
   }
 }));
 

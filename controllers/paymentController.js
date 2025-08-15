@@ -23,7 +23,7 @@ const razorpayInstance = new Razorpay({
 console.log(process.env.REDIS_URL);
 
 
-const redisClient= createClient({
+export const redisClient= createClient({
   url: process.env.REDIS_URL,
  token:"AbAbAAIncDFmZWU3ZTE1Y2E2Mzc0ZDI0OWJkYWEwNDYxN2ViNmRmNHAxNDUwODM"
 })
