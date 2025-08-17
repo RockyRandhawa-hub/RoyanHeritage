@@ -35,15 +35,41 @@ export const createCashfreeOrder = asyncHandler(async (req, res) => {
   const { tickets } = req.body;
   console.log("there u go ur data ciming from frontend" , tickets);
   
+
+   let totalAmount = 0; // initialization!
+
+  tickets.forEach((ticket) => {
+    const age = parseInt(ticket.age) || 0;
+    
+    if (ticket.army) {
+      totalAmount += 100; // Army personnel: ₹100
+    } else if (age >= 18 && age < 60) {
+      totalAmount += 200; // Adults (18-59): ₹200
+    } else if (age < 5) {
+      totalAmount += 0;   // Children under 5: Free
+    } else if (age < 18) {
+      totalAmount += 100; // Children (5-17): ₹100
+    } else if (age >= 60) {
+      // 🔧 FIX 2: Handle seniors (60+) - you missed this case!
+      totalAmount += 100; // Assuming seniors get discount like army
+    }
+  });
+
+  console.log(`💰 Total calculated amount: ₹${totalAmount} for ${tickets.length} tickets`);
+  
+  // 🔧 FIX 3: Add validation for zero amount
+  if (totalAmount <= 0) {
+    throw new ApiError(400, "Invalid total amount calculated");
+  }
   // Calculate total amount
-  const totalAmount = tickets.length * 50;
+  // const totalAmount = tickets.length * 50;
   
   // Generate unique order ID
   const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
   const orderPayload = {
     order_id: orderId,
-    order_amount: 1,
+    order_amount: totalAmount,
     order_currency: "INR",
     customer_details: {
       customer_id: `customer_${Date.now()}`,
