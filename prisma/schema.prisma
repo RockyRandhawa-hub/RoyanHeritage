@@ -32,17 +32,27 @@ model SlotAvailability {
 
 
 model TempOrder {
-  id               Int          @id @default(autoincrement())
-  razorpayOrderId  String       @unique  // ✅ ADD @unique here
-  name             String
-  mobile           String
-  slot             Slot
-  date             DateTime
-  requestedTickets Int
-  createdAt        DateTime     @default(now())
-  tempTickets      TempTicket[]
+  id                    Int          @id @default(autoincrement())
+  razorpayOrderId       String?      @unique
+  cashfreeOrderId       String?      @unique
+  name                  String
+  mobile                String
+  slot                  Slot
+  date                  DateTime
+  requestedTickets      Int
+  createdAt             DateTime     @default(now())
+  
+  // ✅ NEW PAYMENT TRACKING FIELDS
+  paymentStatus         PaymentStatus @default(PENDING)
+  cfPaymentId          String?
+  paymentMethod        String?
+  paymentSessionId     String?
+  webhookReceived      Boolean      @default(false)
+  verificationAttempts Int          @default(0)
+  updatedAt            DateTime     @updatedAt
+  
+  tempTickets           TempTicket[]
 }
-
 model TempTicket {
   id          Int       @id @default(autoincrement())
   name        String
@@ -50,6 +60,11 @@ model TempTicket {
   army        Boolean   @default(false)
   tempOrder   TempOrder @relation(fields: [tempOrderId], references: [id])
   tempOrderId Int
+}
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
 }
 
 model Visitor {
