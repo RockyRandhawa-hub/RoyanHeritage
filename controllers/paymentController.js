@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { APiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import crypto from "crypto";
+import NodeCache from "node-cache";
+
 import { Prisma, PrismaClient } from "@prisma/client";
 import { JsonWebToken } from "../services/TokenService.js";
 import { json } from "stream/consumers";
@@ -23,6 +25,9 @@ const prisma = new PrismaClient()
 const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
 const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
 const CASHFREE_BASE_URL = "https://api.cashfree.com/pg"; // use prod url in live
+
+const otpCache = new NodeCache({ stdTTL: 600 }); // 10 mins TTL
+
 
 console.log('🔑 DEBUG: Environment variables loaded:');
 console.log('CASHFREE_APP_ID:', process.env.CASHFREE_APP_ID);
@@ -326,12 +331,28 @@ export const verifyCashfreePayment = asyncHandler(async(req, res) => {
 });
 
 
-export const otpVerification = asyncHandler(async(req, res) => {
-  const { otp } = req.body; 
-    if(!otp) return res.status(401).json({message:"wrong otp"})
-      return res.status(201).json(new APiResponse(201,{otp}))
-})
+export const otpVerification = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
 
+  if (!email || !otp) {
+    return res.status(401).json({ message: "Email and OTP required" });
+  }
+
+  const storedOtp = otpCache.get(email);
+
+  if (!storedOtp) {
+    return res.status(401).json({ message: "OTP expired or not found" });
+  }
+
+  if (storedOtp !== otp) {
+    return res.status(401).json({ message: "Wrong OTP" });
+  }
+
+  // OTP matched, delete from cache
+  otpCache.del(email);
+
+  return res.status(201).json(new APiResponse(201, { email }, "OTP verified successfully"));
+});
 
 
 function GenerateAndSendSixDigitEmail(){
@@ -340,15 +361,15 @@ function GenerateAndSendSixDigitEmail(){
 }
 
 
-export const GenerateOtp = asyncHandler(async(req, res) => {
+export const GenerateOtp = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  
+
   if (!email) {
     return res.status(401).json(new ApiError(401, "Please enter a valid email Id"));
   }
 
   // Generate OTP
-  const otp = GenerateAndSendSixDigitEmail(); 
+  const otp = GenerateAndSendSixDigitEmail();
 
   const emailHTML = `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: auto; background: #f4f4f4; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.15);">
@@ -371,36 +392,34 @@ export const GenerateOtp = asyncHandler(async(req, res) => {
 
         <p style="font-size: 12px; color: #999; text-align: center;">
           If you didn't request this, you can safely ignore this email.<br />
-          — Team MCME 🔐
+          — Team MCMM 🔐
         </p>
       </div>
     </div>
   `;
-  
+
   try {
     await sendEmail(email, "Your OTP Code", emailHTML);
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error("Email sending error:", error);
     throw new ApiError(500, "Failed to send OTP email. Please try again.");
   }
 
-  // Store email in session
-  
-  // Save session explicitly to ensure it's persisted
+  // 🔑 Store OTP in node-cache with 10 min TTL
+  otpCache.set(email, otp);
 
-
-
-  // Generate token for cookie
+  // 🔑 Still generate token for cookie (keep your flow intact)
   const GenrateTokenOtpandPhoneNumber = await JsonWebToken.generateToken({ email });
-  
+
   const options = {
     httpOnly: true,
-    secure: false,
-    sameSite: 'lax', // Changed to lowercase
-    maxAge: 10 * 60 * 1000
+    secure: false,   // ⚠️ change to true in production if using HTTPS
+    sameSite: "lax",
+    maxAge: 10 * 60 * 1000, // 10 mins
   };
 
-  return res.status(201)
+  return res
+    .status(201)
     .cookie("GenerationOfEmailToken", GenrateTokenOtpandPhoneNumber, options)
-    .json(new APiResponse(201, { sessionId: req.sessionID }, "OTP sent successfully"));
+    .json(new APiResponse(201, { email }, "OTP sent successfully"));
 });
