@@ -181,7 +181,21 @@ const AdminPannelController = asyncHandler(async(req,res)=>{
   }
 });
     
+const liveCounterData  = asyncHandler(async(req,res)=>{
+
+ const counter = await prisma.counter.upsert({
+  where: { id: 1 },
+  update: {
+    count: { increment: 1 }
+  },
+  create: {
+    id: 1,
+    count: 1000
+  }
+});
+        
+    return res.status(201).json(new APiResponse(201,counter))
+})
 
 
-
-export{registerController , loginCOntroller,AdminPannelController}
+export{registerController , loginCOntroller,AdminPannelController , liveCounterData}

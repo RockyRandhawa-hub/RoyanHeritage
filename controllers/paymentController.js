@@ -423,3 +423,5 @@ export const GenerateOtp = asyncHandler(async (req, res) => {
     .cookie("GenerationOfEmailToken", GenrateTokenOtpandPhoneNumber, options)
     .json(new APiResponse(201, { email }, "OTP sent successfully"));
 });
+
+

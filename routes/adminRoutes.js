@@ -1,5 +1,5 @@
 import express from 'express';
-import { AdminPannelController, loginCOntroller, registerController } from '../controllers/AdminController.js';
+import { AdminPannelController, liveCounterData, loginCOntroller, registerController } from '../controllers/AdminController.js';
 
 const adminRouter = express.Router(); 
 
@@ -9,4 +9,5 @@ adminRouter.route("/getTheData").get(AdminPannelController);
 
 adminRouter.route("/loginAdmin").post(loginCOntroller);
 
+adminRouter.route("/getcount").get(liveCounterData)
 export { adminRouter };

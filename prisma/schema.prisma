@@ -95,6 +95,10 @@ model Person {
   ticketId Int
 }
 
+model Counter {
+  id    Int @id @default(1) 
+  count Int @default(1000)
+}
 //  Breakdown:
 // visitor → Ye relation ka naam hai (Prisma ko bol rahe ho ki ek connection hai Ticket aur Visitor ke beech)
 
